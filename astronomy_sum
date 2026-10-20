@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CosmoLab: Interactive Gravity & Orbit Simulator</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Inter Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            space: {
+              900: '#030712',
+              800: '#0B0F19',
+              700: '#111827',
+              600: '#1F2937',
+            },
+            accent: {
+              cyan: '#06b6d4',
+              blue: '#3b82f6',
+              amber: '#f59e0b',
+              rose: '#f43f5e',
+              emerald: '#10b981',
+              violet: '#8b5cf6'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Glassmorphism UI Styles */
+    .glass-panel {
+      background: rgba(11, 15, 25, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .glass-button {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.2s ease;
+    }
+
+    .glass-button:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: translateY(-1px);
+    }
+
+    .glass-button:active {
+      transform: translateY(0);
+    }
+
+    .glass-button.active {
+      background: rgba(6, 182, 212, 0.2);
+      border-color: rgba(6, 182, 212, 0.6);
+      color: #38bdf8;
+    }
+
+    /* Range Input Custom Styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: transparent;
+    }
+
+    input[type=range]:focus {
+      outline: none;
+    }
+
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 6px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      height: 16px;
+      width: 16px;
+      border-radius: 50%;
+      background: #06b6d4;
+      cursor: pointer;
+      -webkit-appearance: none;
+      margin-top: -5px;
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.8);
+      transition: transform 0.1s ease;
+    }
+
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Pulse Glow animations */
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.8; filter: drop-shadow(0 0 15px rgba(245, 158, 11, 0.6)); }
+      50% { opacity: 1; filter: drop-shadow(0 0 25px rgba(245, 158, 11, 0.9)); }
+    }
+
+    .sun-glow-anim {
+      animation: pulse-glow 4s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="bg-space-900 text-slate-100 font-sans h-screen w-screen overflow-hidden select-none">
+
+  <!-- Main Canvas Container -->
+  <div class="relative w-full h-full">
+    <canvas id="simCanvas" class="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing"></canvas>
+
+    <!-- Top Navigation / Header HUD -->
+    <header class="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none z-10">
+      <!-- Title Badge -->
+      <div class="glass-panel px-4 py-2.5 rounded-2xl flex items-center space-x-3 pointer-events-auto">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center shadow-lg shadow-amber-500/30">
+          <i class="fa-solid font-bold text-space-900 text-lg fa-globe"></i>
+        </div>
+        <div>
+          <h1 class="text-base font-bold tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400">
+            CosmoLab <span class="text-xs font-normal text-cyan-400 px-1.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-800/50">PHYSICS v2.5</span>
+          </h1>
+          <p class="text-xs text-slate-400">Interactive Orbital & Gravity Simulator</p>
+        </div>
+      </div>
+
+      <!-- Quick Status & Presets Quick-Bar -->
+      <div class="hidden lg:flex items-center space-x-2 pointer-events-auto glass-panel p-1.5 rounded-2xl">
+        <span class="text-xs text-slate-400 font-medium px-2">Presets:</span>
+        <button onclick="loadPreset('circular')" class="glass-button text-xs font-medium px-3 py-1.5 rounded-xl hover:text-cyan-300 transition">
+          <i class="fa-solid fa-circle-notch text-cyan-400 mr-1.5"></i>Circular
+        </button>
+        <button onclick="loadPreset('elliptical')" class="glass-button text-xs font-medium px-3 py-1.5 rounded-xl hover:text-amber-300 transition">
+          <i class="fa-solid fa-egg text-amber-400 mr-1.5"></i>Elliptical (Kepler)
+        </button>
+        <button onclick="loadPreset('escape')" class="glass-button text-xs font-medium px-3 py-1.5 rounded-xl hover:text-rose-300 transition">
+          <i class="fa-solid fa-rocket text-rose-400 mr-1.5"></i>Escape Vel.
+        </button>
+        <button onclick="loadPreset('noGravity')" class="glass-button text-xs font-medium px-3 py-1.5 rounded-xl hover:text-violet-300 transition">
+          <i class="fa-solid fa-magnet text-violet-400 mr-1.5"></i>Inertia (No G)
+        </button>
+      </div>
+
+      <!-- Action Buttons Right (Lessons & Reset) -->
+      <div class="flex items-center space-x-2 pointer-events-auto">
+        <button id="toggleLessonBtn" class="glass-panel hover:bg-slate-800/80 px-3.5 py-2 rounded-2xl text-xs font-medium text-amber-300 flex items-center space-x-2 transition border-amber-500/30">
+          <i class="fa-solid fa-graduation-cap text-amber-400 text-sm"></i>
+          <span class="hidden sm:inline">Guided Lessons</span>
+        </button>
+        <button onclick="resetSimulation()" class="glass-panel hover:bg-slate-800/80 p-2.5 rounded-2xl text-slate-300 hover:text-white transition" title="Reset Simulation">
+          <i class="fa-solid fa-rotate-left"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Floating Viewport & Camera Controls (Top Center Below Header) -->
+    <div class="absolute top-20 left-1/2 -translate-x-1/2 glass-panel px-3 py-2 rounded-2xl flex items-center space-x-3 z-10 pointer-events-auto shadow-xl">
+      <div class="flex items-center space-x-1">
+        <button onclick="adjustZoom(1.25)" class="glass-button p-2 rounded-xl text-slate-200 hover:text-cyan-400 transition" title="Zoom In">
+          <i class="fa-solid fa-magnifying-glass-plus text-xs"></i>
+        </button>
+        <span id="zoomLevelText" class="text-xs font-mono text-cyan-300 px-1 min-w-[45px] text-center">100%</span>
+        <button onclick="adjustZoom(0.8)" class="glass-button p-2 rounded-xl text-slate-200 hover:text-cyan-400 transition" title="Zoom Out">
+          <i class="fa-solid fa-magnifying-glass-minus text-xs"></i>
+        </button>
+      </div>
+
+      <div class="h-4 w-px bg-slate-700"></div>
+
+      <!-- Camera Tracking Target Selector -->
+      <div class="flex items-center space-x-1 text-xs">
+        <span class="text-slate-400 mr-1 hidden sm:inline"><i class="fa-solid fa-crosshairs text-cyan-400 mr-1"></i>Focus:</span>
+        <button onclick="setCameraFocus('free')" id="focusBtnFree" class="focus-btn glass-button active text-[11px] px-2.5 py-1 rounded-lg">Free</button>
+        <button onclick="setCameraFocus('sun')" id="focusBtnSun" class="focus-btn glass-button text-[11px] px-2.5 py-1 rounded-lg">Sun</button>
+        <button onclick="setCameraFocus('earth')" id="focusBtnEarth" class="focus-btn glass-button text-[11px] px-2.5 py-1 rounded-lg">Earth</button>
+      </div>
+
+      <div class="h-4 w-px bg-slate-700"></div>
+
+      <button onclick="resetCameraView()" class="glass-button p-2 rounded-xl text-slate-300 hover:text-white transition" title="Reset View & Zoom">
+        <i class="fa-solid fa-expand text-xs"></i>
+      </button>
+    </div>
+
+    <!-- Floating Live Telemetry HUD Panel (Top Left below Header) -->
+    <div class="absolute top-20 left-4 w-72 glass-panel rounded-2xl p-4 space-y-3 z-10 pointer-events-auto">
+      <div class="flex items-center justify-between border-b border-slate-700/50 pb-2">
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+          <i class="fa-solid fa-gauge-high text-cyan-400"></i> Telemetry HUD
+        </span>
+        <span id="orbitTypeBadge" class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-800/50">
+          STABLE ORBIT
+        </span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+        <div class="glass-card p-2 rounded-xl">
+          <div class="text-[10px] text-slate-400 font-sans">Distance (r)</div>
+          <div class="text-cyan-300 font-bold mt-0.5" id="hudDistance">1.00 AU</div>
+          <div class="text-[9px] text-slate-500" id="hudDistanceKm">149.6M km</div>
+        </div>
+        <div class="glass-card p-2 rounded-xl">
+          <div class="text-[10px] text-slate-400 font-sans">Velocity (v)</div>
+          <div class="text-amber-300 font-bold mt-0.5" id="hudVelocity">29.78 km/s</div>
+          <div class="text-[9px] text-slate-500" id="hudSpeedRatio">1.00x Circular</div>
+        </div>
+        <div class="glass-card p-2 rounded-xl">
+          <div class="text-[10px] text-slate-400 font-sans">Gravity Force (Fg)</div>
+          <div class="text-rose-400 font-bold mt-0.5" id="hudForce">3.54 × 10²² N</div>
+        </div>
+        <div class="glass-card p-2 rounded-xl">
+          <div class="text-[10px] text-slate-400 font-sans">Orbital Period (T)</div>
+          <div class="text-violet-300 font-bold mt-0.5" id="hudPeriod">365 Days</div>
+        </div>
+      </div>
+
+      <!-- Energy Distribution Balance Bar -->
+      <div class="space-y-1 pt-1">
+        <div class="flex justify-between text-[10px] font-medium text-slate-400">
+          <span>Kinetic Energy (Ek)</span>
+          <span>Potential Energy (Ep)</span>
+        </div>
+        <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden flex">
+          <div id="barKinetic" class="bg-amber-400 h-full transition-all duration-75" style="width: 50%;"></div>
+          <div id="barPotential" class="bg-cyan-500 h-full transition-all duration-75" style="width: 50%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Controls Panel (Sliders & Toggles) -->
+    <div class="absolute top-20 right-4 w-80 max-h-[calc(100vh-120px)] overflow-y-auto glass-panel rounded-2xl p-4 space-y-4 z-10 pointer-events-auto">
+      
+      <!-- Section Header -->
+      <div class="flex items-center justify-between border-b border-slate-700/50 pb-2">
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+          <i class="fa-solid fa-sliders text-cyan-400"></i> Physics Controls
+        </span>
+        <button onclick="resetPhysicsToDefault()" class="text-[10px] text-slate-400 hover:text-cyan-400 underline transition">
+          Defaults
+        </button>
+      </div>
+
+      <!-- Main Gravity Toggle -->
+      <div class="glass-card p-3 rounded-xl flex items-center justify-between">
+        <div>
+          <div class="text-xs font-semibold text-slate-200">Universal Gravity</div>
+          <div class="text-[10px] text-slate-400">Toggle Newton's Law ($F_g$)</div>
+        </div>
+        <button id="toggleGravityBtn" onclick="toggleGravity()" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20 hover:bg-cyan-400 transition">
+          <i class="fa-solid fa-magnet mr-1"></i> ON
+        </button>
+      </div>
+
+      <!-- Sun Mass Slider -->
+      <div class="space-y-1.5">
+        <div class="flex justify-between text-xs font-medium">
+          <span class="text-slate-300 flex items-center gap-1">
+            <i class="fa-solid fa-sun text-amber-400"></i> Sun Mass ($M_\odot$)
+          </span>
+          <span id="sunMassVal" class="font-mono text-amber-400">1.00 M☉</span>
+        </div>
+        <input type="range" id="sunMassSlider" min="0.1" max="3.0" step="0.05" value="1.0" oninput="updatePhysicsFromControls()">
+        <div class="flex justify-between text-[9px] text-slate-500 font-mono">
+          <span>0.1x (Red Dwarf)</span>
+          <span>1.0x (Sun)</span>
+          <span>3.0x (Massive)</span>
+        </div>
+      </div>
+
+      <!-- Planet Speed Booster Slider -->
+      <div class="space-y-1.5">
+        <div class="flex justify-between text-xs font-medium">
+          <span class="text-slate-300 flex items-center gap-1">
+            <i class="fa-solid fa-gauge text-cyan-400"></i> Orbital Speed Boost
+          </span>
+          <span id="speedBoostVal" class="font-mono text-cyan-400">100%</span>
+        </div>
+        <input type="range" id="speedBoostSlider" min="10" max="250" step="1" value="100" oninput="updateSpeedBoost()">
+      </div>
+
+      <!-- Distance Adjuster -->
+      <div class="space-y-1.5">
+        <div class="flex justify-between text-xs font-medium">
+          <span class="text-slate-300 flex items-center gap-1">
+            <i class="fa-solid fa-ruler-horizontal text-emerald-400"></i> Initial Distance ($r$)
+          </span>
+          <span id="distanceVal" class="font-mono text-emerald-400">1.00 AU</span>
+        </div>
+        <input type="range" id="distanceSlider" min="0.4" max="2.2" step="0.05" value="1.0" onchange="applyNewDistance()">
+      </div>
+
+      <!-- Visual Overlays & Vector Toggles -->
+      <div class="space-y-2 border-t border-slate-700/50 pt-3">
+        <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Vector Visualizers</div>
+        
+        <div class="grid grid-cols-2 gap-2">
+          <button id="btnVecForce" onclick="toggleVector('force')" class="glass-button active p-2 rounded-xl text-left flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm shadow-rose-500"></span>
+            <span class="text-xs">Gravity (Fg)</span>
+          </button>
+          
+          <button id="btnVecVelocity" onclick="toggleVector('velocity')" class="glass-button active p-2 rounded-xl text-left flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-sm shadow-amber-400"></span>
+            <span class="text-xs">Velocity (v)</span>
+          </button>
+
+          <button id="btnVecAccel" onclick="toggleVector('accel')" class="glass-button p-2 rounded-xl text-left flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-violet-400 shadow-sm shadow-violet-400"></span>
+            <span class="text-xs">Accel (a)</span>
+          </button>
+
+          <button id="btnToggleTrail" onclick="toggleTrail()" class="glass-button active p-2 rounded-xl text-left flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-sm shadow-cyan-400"></span>
+            <span class="text-xs">Orbit Path</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Additional Display Options -->
+      <div class="space-y-2 border-t border-slate-700/50 pt-3">
+        <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Features</div>
+        
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-slate-300">Show Moon System</span>
+          <input type="checkbox" id="chkMoon" class="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0" checked onchange="toggleMoon()">
+        </div>
+
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-slate-300">Grid Overlay</span>
+          <input type="checkbox" id="chkGrid" class="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0" onchange="toggleGrid()">
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bottom Playback & Speed Control Bar -->
+    <div class="absolute bottom-6 left-1/2 -translate-x-1/2 glass-panel px-6 py-3 rounded-2xl flex items-center space-x-6 z-10 pointer-events-auto">
+      
+      <!-- Simulation Time Speed Multipliers -->
+      <div class="flex items-center space-x-1">
+        <span class="text-xs text-slate-400 mr-1 hidden sm:inline">Speed:</span>
+        <button onclick="setSimSpeed(0.2)" class="speed-btn glass-button text-xs font-mono px-2.5 py-1 rounded-lg">0.2x</button>
+        <button onclick="setSimSpeed(1.0)" class="speed-btn glass-button active text-xs font-mono px-2.5 py-1 rounded-lg">1x</button>
+        <button onclick="setSimSpeed(2.0)" class="speed-btn glass-button text-xs font-mono px-2.5 py-1 rounded-lg">2x</button>
+        <button onclick="setSimSpeed(5.0)" class="speed-btn glass-button text-xs font-mono px-2.5 py-1 rounded-lg">5x</button>
+      </div>
+
+      <div class="h-5 w-px bg-slate-700"></div>
+
+      <!-- Main Play / Pause Button -->
+      <div class="flex items-center space-x-3">
+        <button id="btnPlayPause" onclick="togglePlayPause()" class="w-11 h-11 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-slate-950 font-bold flex items-center justify-center shadow-lg shadow-cyan-500/30 hover:scale-105 active:scale-95 transition">
+          <i id="playIcon" class="fa-solid fa-pause text-base"></i>
+        </button>
+
+        <button onclick="stepSimulation()" class="glass-button p-2.5 rounded-xl text-slate-300 hover:text-white transition" title="Step 1 Frame">
+          <i class="fa-solid fa-forward-step"></i>
+        </button>
+      </div>
+
+      <div class="h-5 w-px bg-slate-700"></div>
+
+      <!-- Clear Trail -->
+      <button onclick="clearTrail()" class="glass-button text-xs px-3 py-1.5 rounded-xl text-slate-300 hover:text-white transition flex items-center gap-1.5">
+        <i class="fa-solid fa-eraser text-slate-400"></i>
+        <span class="hidden sm:inline">Clear Path</span>
+      </button>
+
+    </div>
+
+    <!-- Guided Lessons Drawer Modal (Slide in from Right) -->
+    <div id="lessonDrawer" class="fixed top-0 right-0 w-full sm:w-96 h-full glass-panel z-30 transition-transform duration-300 translate-x-full p-6 overflow-y-auto space-y-6">
+      <div class="flex items-center justify-between border-b border-slate-700/60 pb-4">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-book-open text-amber-400 text-lg"></i>
+          <h2 class="font-bold text-base text-slate-100">Physics Mini-Lessons</h2>
+        </div>
+        <button id="closeLessonBtn" class="text-slate-400 hover:text-white p-1 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Lesson 1 -->
+      <div class="glass-card p-4 rounded-xl space-y-2 border-l-4 border-l-cyan-400">
+        <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-wide">Lesson 1 • Newton's 1st Law</span>
+        <h3 class="text-sm font-semibold text-slate-200">Inertia & Tangential Motion</h3>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          Planets do not travel in circles naturally; gravity constantly pulls them toward the Sun while their velocity carries them forward.
+        </p>
+        <div class="bg-space-900/60 p-2.5 rounded-lg text-xs text-amber-200/90 font-mono space-y-1">
+          <div>💡 <strong>Try this:</strong></div>
+          <ol class="list-decimal list-inside space-y-1 text-[11px] text-slate-300">
+            <li>Click the <strong>Inertia (No G)</strong> preset.</li>
+            <li>Turn gravity back <strong>ON</strong> mid-flight and watch gravity pull the planet into a new elliptical orbit!</li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Lesson 2 -->
+      <div class="glass-card p-4 rounded-xl space-y-2 border-l-4 border-l-amber-400">
+        <span class="text-[10px] font-bold text-amber-400 uppercase tracking-wide">Lesson 2 • Kepler's Laws</span>
+        <h3 class="text-sm font-semibold text-slate-200">Elliptical Speed Variation</h3>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          Kepler's Second Law states that planets sweep out equal areas in equal times. They move fastest near the Sun (Perihelion) and slowest far away (Aphelion).
+        </p>
+        <div class="bg-space-900/60 p-2.5 rounded-lg text-xs text-amber-200/90 font-mono space-y-1">
+          <div>💡 <strong>Try this:</strong></div>
+          <ol class="list-decimal list-inside space-y-1 text-[11px] text-slate-300">
+            <li>Select the <strong>Elliptical Orbit</strong> preset.</li>
+            <li>Observe the <strong>Velocity HUD</strong> gauge spike as the Earth whips around the Sun.</li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Lesson 3 -->
+      <div class="glass-card p-4 rounded-xl space-y-2 border-l-4 border-l-rose-400">
+        <span class="text-[10px] font-bold text-rose-400 uppercase tracking-wide">Lesson 3 • Escape Velocity</span>
+        <h3 class="text-sm font-semibold text-slate-200">Overcoming Gravity</h3>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          If an object's kinetic energy exceeds the gravitational potential energy holding it, it escapes on a parabolic or hyperbolic trajectory ($\sqrt{2} \cdot v_{circ}$).
+        </p>
+        <div class="bg-space-900/60 p-2.5 rounded-lg text-xs text-amber-200/90 font-mono space-y-1">
+          <div>💡 <strong>Try this:</strong></div>
+          <ol class="list-decimal list-inside space-y-1 text-[11px] text-slate-300">
+            <li>Click <strong>Escape Velocity</strong> preset or crank <strong>Orbital Speed Boost</strong> to 150%+.</li>
+            <li>Watch the Kinetic Energy bar dominate the potential energy bar!</li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Teacher / Student Tip -->
+      <div class="p-3 bg-cyan-950/30 border border-cyan-800/40 rounded-xl text-xs text-cyan-200 space-y-1">
+        <div class="font-bold flex items-center gap-1.5">
+          <i class="fa-solid fa-hand-pointer"></i> Interactive Dragging
+        </div>
+        <p class="text-[11px] text-slate-300">
+          You can drag the Earth on the canvas to place it anywhere, or drag the tip of the velocity vector arrow to shoot it with custom speed and direction!
+        </p>
+      </div>
+
+    </div>
+
+    <!-- On-Canvas Drag Helper Prompt -->
+    <div id="canvasTip" class="absolute bottom-24 left-1/2 -translate-x-1/2 pointer-events-none opacity-80 transition-opacity duration-500">
+      <div class="glass-panel px-3 py-1.5 rounded-full text-[11px] text-slate-300 flex items-center space-x-2 shadow-lg">
+        <i class="fa-solid fa-computer-mouse text-cyan-400"></i>
+        <span>Scroll to Zoom • Drag Canvas to Pan • Drag Earth to Launch</span>
+      </div>
+    </div>
+
+    <!-- Dynamic Screen Distance Scale Indicator (Bottom Left) -->
+    <div class="absolute bottom-6 left-6 glass-panel px-3 py-2 rounded-xl pointer-events-none z-10 flex flex-col items-center">
+      <div id="scaleBarLine" class="h-1 bg-cyan-400/80 rounded-full border border-cyan-200/50 shadow-sm shadow-cyan-500/50 transition-all duration-150" style="width: 80px;"></div>
+      <div id="scaleBarText" class="text-[10px] font-mono text-cyan-300 mt-1">1.00 AU (149.6M km)</div>
+    </div>
+
+  </div>
+
+  <!-- Main JavaScript Engine -->
+  <script>
+    /**
+     * CosmoLab Physics & Camera Engine
+     */
+
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Simulation Constants
+    const G_CONST = 1000; // Gravitational constant scaled for screen dimensions
+    const AU_PIXELS = 180; // Base pixels per Astronomical Unit (AU) at 1.0 zoom
+
+    // Camera & Viewport Transformation Matrix State
+    let camera = {
+      x: 0,           // World x at canvas center
+      y: 0,           // World y at canvas center
+      zoom: 1.0,      // Scale factor
+      minZoom: 0.15,
+      maxZoom: 15.0,
+      target: 'sun'   // 'free', 'sun', 'earth'
+    };
+
+    // System State
+    let isRunning = true;
+    let simSpeed = 1.0;
+    let gravityEnabled = true;
+    let showGrid = false;
+    let showMoon = true;
+    let showTrail = true;
+
+    let vectorToggles = {
+      force: true,
+      velocity: true,
+      accel: false
+    };
+
+    // Celestial Bodies State
+    let sun = {
+      x: 0,
+      y: 0,
+      mass: 1.0,
+      baseRadius: 28
+    };
+
+    let earth = {
+      x: 0,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      mass: 0.001,
+      baseRadius: 10,
+      trail: [],
+      maxTrailLength: 400
+    };
+
+    let moon = {
+      angle: 0,
+      dist: 22,
+      speed: 0.05,
+      baseRadius: 3
+    };
+
+    // Stars Background
+    let stars = [];
+
+    // Interaction State
+    let isDraggingEarth = false;
+    let isDraggingVelocity = false;
+    let isPanningCanvas = false;
+    let panStartX = 0;
+    let panStartY = 0;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+
+    // Pinch Zoom Tracking
+    let touchStartDist = 0;
+    let touchStartZoom = 1.0;
+
+    // Coordinate Conversion Helpers (World <-> Screen)
+    function worldToScreen(wx, wy) {
+      return {
+        x: (wx - camera.x) * camera.zoom + canvas.width / 2,
+        y: (wy - camera.y) * camera.zoom + canvas.height / 2
+      };
+    }
+
+    function screenToWorld(sx, sy) {
+      return {
+        x: (sx - canvas.width / 2) / camera.zoom + camera.x,
+        y: (sy - canvas.height / 2) / camera.zoom + camera.y
+      };
+    }
+
+    // Initialize Canvas & Screen Space
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      generateStarfield();
+    }
+
+    function generateStarfield() {
+      stars = [];
+      const count = Math.floor((canvas.width * canvas.height) / 2500);
+      for (let i = 0; i < count; i++) {
+        stars.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          radius: Math.random() * 1.5 + 0.3,
+          alpha: Math.random() * 0.8 + 0.2,
+          twinkleSpeed: Math.random() * 0.02 + 0.005,
+          parallaxDepth: Math.random() * 0.4 + 0.1 // Parallax depth factor
+        });
+      }
+    }
+
+    // Default Physics & Camera Initialization
+    function resetSimulation() {
+      sun.x = 0;
+      sun.y = 0;
+      sun.mass = 1.0;
+
+      document.getElementById('sunMassSlider').value = "1.0";
+      document.getElementById('sunMassVal').innerText = "1.00 M☉";
+
+      document.getElementById('distanceSlider').value = "1.0";
+      document.getElementById('distanceVal').innerText = "1.00 AU";
+
+      document.getElementById('speedBoostSlider').value = "100";
+      document.getElementById('speedBoostVal').innerText = "100%";
+
+      gravityEnabled = true;
+      updateGravityBtnUI();
+
+      // Set initial circular orbit position at 1 AU
+      const dist = 1.0 * AU_PIXELS;
+      earth.x = sun.x + dist;
+      earth.y = sun.y;
+
+      const vCirc = Math.sqrt((G_CONST * sun.mass) / dist);
+      earth.vx = 0;
+      earth.vy = -vCirc;
+
+      earth.trail = [];
+      resetCameraView();
+    }
+
+    function resetPhysicsToDefault() {
+      resetSimulation();
+    }
+
+    function resetCameraView() {
+      camera.zoom = 1.0;
+      camera.target = 'sun';
+      camera.x = sun.x;
+      camera.y = sun.y;
+      updateCameraFocusUI();
+      updateZoomUI();
+    }
+
+    function adjustZoom(factor, zoomCenterScreen = { x: canvas.width / 2, y: canvas.height / 2 }) {
+      const oldZoom = camera.zoom;
+      let newZoom = camera.zoom * factor;
+      newZoom = Math.max(camera.minZoom, Math.min(camera.maxZoom, newZoom));
+
+      if (newZoom === oldZoom) return;
+
+      // Adjust camera center so zoom centers on cursor position
+      const worldCenterBefore = screenToWorld(zoomCenterScreen.x, zoomCenterScreen.y);
+      camera.zoom = newZoom;
+      const worldCenterAfter = screenToWorld(zoomCenterScreen.x, zoomCenterScreen.y);
+
+      if (camera.target === 'free') {
+        camera.x += (worldCenterBefore.x - worldCenterAfter.x);
+        camera.y += (worldCenterBefore.y - worldCenterAfter.y);
+      }
+
+      updateZoomUI();
+    }
+
+    function setCameraFocus(target) {
+      camera.target = target;
+      updateCameraFocusUI();
+    }
+
+    function updateCameraFocusUI() {
+      document.querySelectorAll('.focus-btn').forEach(btn => btn.classList.remove('active'));
+      if (camera.target === 'free') document.getElementById('focusBtnFree').classList.add('active');
+      if (camera.target === 'sun') document.getElementById('focusBtnSun').classList.add('active');
+      if (camera.target === 'earth') document.getElementById('focusBtnEarth').classList.add('active');
+    }
+
+    function updateZoomUI() {
+      document.getElementById('zoomLevelText').innerText = `${Math.round(camera.zoom * 100)}%`;
+      updateScaleBar();
+    }
+
+    function updateScaleBar() {
+      // Scale bar logic: calculate length in pixels representing 1 AU
+      const pxPerAU = AU_PIXELS * camera.zoom;
+      let barPixels = pxPerAU;
+      let valAU = 1.0;
+
+      if (barPixels > 250) {
+        valAU = 0.5;
+        barPixels = pxPerAU * 0.5;
+      } else if (barPixels < 40) {
+        valAU = 2.0;
+        barPixels = pxPerAU * 2.0;
+      }
+
+      const barLine = document.getElementById('scaleBarLine');
+      const barText = document.getElementById('scaleBarText');
+      if (barLine && barText) {
+        barLine.style.width = `${Math.round(barPixels)}px`;
+        barText.innerText = `${valAU} AU (${(valAU * 149.6).toFixed(1)}M km)`;
+      }
+    }
+
+    // Preset Configurations
+    function loadPreset(presetName) {
+      resetSimulation();
+      const dist = 1.0 * AU_PIXELS;
+      earth.x = sun.x + dist;
+      earth.y = sun.y;
+      const vCirc = Math.sqrt((G_CONST * sun.mass) / dist);
+
+      switch (presetName) {
+        case 'circular':
+          earth.vx = 0;
+          earth.vy = -vCirc;
+          break;
+
+        case 'elliptical':
+          earth.vx = 0;
+          earth.vy = -vCirc * 0.72;
+          document.getElementById('speedBoostSlider').value = "72";
+          document.getElementById('speedBoostVal').innerText = "72%";
+          break;
+
+        case 'escape':
+          earth.vx = 0;
+          earth.vy = -vCirc * 1.45;
+          document.getElementById('speedBoostSlider').value = "145";
+          document.getElementById('speedBoostVal').innerText = "145%";
+          break;
+
+        case 'noGravity':
+          earth.vx = 0;
+          earth.vy = -vCirc;
+          gravityEnabled = false;
+          updateGravityBtnUI();
+          break;
+      }
+    }
+
+    // Core Physics Step (Velocity Verlet Integration)
+    function updatePhysics(dt) {
+      if (!isRunning) return;
+
+      const subSteps = 4;
+      const subDt = (dt * simSpeed) / subSteps;
+
+      for (let step = 0; step < subSteps; step++) {
+        let dx = sun.x - earth.x;
+        let dy = sun.y - earth.y;
+        let rSq = dx * dx + dy * dy;
+        let r = Math.sqrt(rSq);
+
+        if (r < sun.baseRadius * 0.5) r = sun.baseRadius * 0.5;
+
+        let ax = 0;
+        let ay = 0;
+
+        if (gravityEnabled) {
+          let accelMag = (G_CONST * sun.mass) / (r * r);
+          ax = accelMag * (dx / r);
+          ay = accelMag * (dy / r);
+        }
+
+        // Velocity Verlet Position Step
+        earth.x += earth.vx * subDt + 0.5 * ax * subDt * subDt;
+        earth.y += earth.vy * subDt + 0.5 * ay * subDt * subDt;
+
+        let newDx = sun.x - earth.x;
+        let newDy = sun.y - earth.y;
+        let newRSq = newDx * newDx + newDy * newDy;
+        let newR = Math.sqrt(newRSq);
+        if (newR < sun.baseRadius * 0.5) newR = sun.baseRadius * 0.5;
+
+        let newAx = 0;
+        let newAy = 0;
+
+        if (gravityEnabled) {
+          let newAccelMag = (G_CONST * sun.mass) / (newRSq);
+          newAx = newAccelMag * (newDx / newR);
+          newAy = newAccelMag * (newDy / newR);
+        }
+
+        // Velocity Verlet Velocity Step
+        earth.vx += 0.5 * (ax + newAx) * subDt;
+        earth.vy += 0.5 * (ay + newAy) * subDt;
+      }
+
+      // Record trajectory history in world coordinates
+      if (showTrail) {
+        earth.trail.push({ x: earth.x, y: earth.y });
+        if (earth.trail.length > earth.maxTrailLength) {
+          earth.trail.shift();
+        }
+      }
+
+      // Orbit Moon
+      moon.angle += moon.speed * simSpeed;
+
+      // Update Camera Tracking Target Position smoothly
+      if (camera.target === 'sun') {
+        camera.x += (sun.x - camera.x) * 0.1;
+        camera.y += (sun.y - camera.y) * 0.1;
+      } else if (camera.target === 'earth') {
+        camera.x += (earth.x - camera.x) * 0.1;
+        camera.y += (earth.y - camera.y) * 0.1;
+      }
+    }
+
+    // Render Canvas Frame with Camera Transform
+    function render() {
+      // 1. Clear & Deep Space Background Gradient
+      ctx.fillStyle = '#030712';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const sunScreen = worldToScreen(sun.x, sun.y);
+      const radialBg = ctx.createRadialGradient(
+        sunScreen.x, sunScreen.y, 10,
+        sunScreen.x, sunScreen.y, Math.max(canvas.width, canvas.height) * 0.9
+      );
+      radialBg.addColorStop(0, '#0f172a');
+      radialBg.addColorStop(0.5, '#070a14');
+      radialBg.addColorStop(1, '#030712');
+      ctx.fillStyle = radialBg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 2. Render Parallax Starfield
+      for (let star of stars) {
+        const starSx = (star.x - camera.x * star.parallaxDepth * 0.05) % canvas.width;
+        const starSy = (star.y - camera.y * star.parallaxDepth * 0.05) % canvas.height;
+        const finalSx = starSx < 0 ? starSx + canvas.width : starSx;
+        const finalSy = starSy < 0 ? starSy + canvas.height : starSy;
+
+        star.alpha += Math.sin(Date.now() * star.twinkleSpeed) * 0.01;
+        star.alpha = Math.max(0.1, Math.min(0.9, star.alpha));
+        ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+        ctx.beginPath();
+        ctx.arc(finalSx, finalSy, star.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 3. Render Astronomical Coordinate Grid (Optional)
+      if (showGrid) {
+        for (let rAU = 0.5; rAU <= 5.0; rAU += 0.5) {
+          const rPixels = rAU * AU_PIXELS * camera.zoom;
+          ctx.strokeStyle = 'rgba(6, 182, 212, 0.1)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(sunScreen.x, sunScreen.y, rPixels, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.fillStyle = 'rgba(6, 182, 212, 0.35)';
+          ctx.font = '10px JetBrains Mono';
+          ctx.fillText(`${rAU} AU`, sunScreen.x + rPixels + 4, sunScreen.y - 4);
+        }
+      }
+
+      // 4. Render Orbital Trail in Screen Coordinates
+      if (showTrail && earth.trail.length > 1) {
+        for (let i = 0; i < earth.trail.length - 1; i++) {
+          const p1 = worldToScreen(earth.trail[i].x, earth.trail[i].y);
+          const p2 = worldToScreen(earth.trail[i + 1].x, earth.trail[i + 1].y);
+          const progress = i / earth.trail.length;
+
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          
+          ctx.strokeStyle = `rgba(6, 182, 212, ${progress * 0.7})`;
+          ctx.lineWidth = Math.max(1, (1.5 + progress * 1.5) * Math.sqrt(camera.zoom));
+          ctx.stroke();
+        }
+      }
+
+      // 5. Render Sun with Adaptive Scaling
+      const sunRadiusScreen = Math.max(12, sun.baseRadius * camera.zoom);
+
+      const sunGlow = ctx.createRadialGradient(
+        sunScreen.x, sunScreen.y, sunRadiusScreen * 0.2,
+        sunScreen.x, sunScreen.y, sunRadiusScreen * 3.5
+      );
+      sunGlow.addColorStop(0, 'rgba(251, 191, 36, 1)');
+      sunGlow.addColorStop(0.3, 'rgba(245, 158, 11, 0.6)');
+      sunGlow.addColorStop(0.7, 'rgba(217, 119, 6, 0.2)');
+      sunGlow.addColorStop(1, 'rgba(217, 119, 6, 0)');
+
+      ctx.fillStyle = sunGlow;
+      ctx.beginPath();
+      ctx.arc(sunScreen.x, sunScreen.y, sunRadiusScreen * 3.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      const sunCore = ctx.createRadialGradient(
+        sunScreen.x - 4, sunScreen.y - 4, 2,
+        sunScreen.x, sunScreen.y, sunRadiusScreen
+      );
+      sunCore.addColorStop(0, '#fffbeb');
+      sunCore.addColorStop(0.4, '#fde047');
+      sunCore.addColorStop(0.8, '#f59e0b');
+      sunCore.addColorStop(1, '#d97706');
+
+      ctx.fillStyle = sunCore;
+      ctx.beginPath();
+      ctx.arc(sunScreen.x, sunScreen.y, sunRadiusScreen, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 6. Render Earth & Atmosphere
+      const earthScreen = worldToScreen(earth.x, earth.y);
+      const earthRadiusScreen = Math.max(5, earth.baseRadius * camera.zoom);
+      const earthAngle = Math.atan2(earth.y - sun.y, earth.x - sun.x);
+
+      // Earth Atmosphere Glow
+      const earthAtmosphere = ctx.createRadialGradient(
+        earthScreen.x, earthScreen.y, earthRadiusScreen,
+        earthScreen.x, earthScreen.y, earthRadiusScreen * 2.2
+      );
+      earthAtmosphere.addColorStop(0, 'rgba(56, 189, 248, 0.45)');
+      earthAtmosphere.addColorStop(1, 'rgba(56, 189, 248, 0)');
+
+      ctx.fillStyle = earthAtmosphere;
+      ctx.beginPath();
+      ctx.arc(earthScreen.x, earthScreen.y, earthRadiusScreen * 2.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Earth Body
+      const earthBody = ctx.createLinearGradient(
+        earthScreen.x - Math.cos(earthAngle) * earthRadiusScreen,
+        earthScreen.y - Math.sin(earthAngle) * earthRadiusScreen,
+        earthScreen.x + Math.cos(earthAngle) * earthRadiusScreen,
+        earthScreen.y + Math.sin(earthAngle) * earthRadiusScreen
+      );
+      earthBody.addColorStop(0, '#0284c7');
+      earthBody.addColorStop(0.6, '#0369a1');
+      earthBody.addColorStop(1, '#0f172a');
+
+      ctx.fillStyle = earthBody;
+      ctx.beginPath();
+      ctx.arc(earthScreen.x, earthScreen.y, earthRadiusScreen, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 7. Render Moon System (Adaptive distance & radius)
+      if (showMoon) {
+        const moonDistScreen = Math.max(earthRadiusScreen + 8, moon.dist * camera.zoom);
+        const moonRadiusScreen = Math.max(2, moon.baseRadius * Math.sqrt(camera.zoom));
+
+        const mxWorld = earth.x + Math.cos(moon.angle) * (moonDistScreen / camera.zoom);
+        const myWorld = earth.y + Math.sin(moon.angle) * (moonDistScreen / camera.zoom);
+        const moonScreen = worldToScreen(mxWorld, myWorld);
+
+        // Moon Orbit Path Ring
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(earthScreen.x, earthScreen.y, moonDistScreen, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Moon Body
+        ctx.fillStyle = '#e2e8f0';
+        ctx.beginPath();
+        ctx.arc(moonScreen.x, moonScreen.y, moonRadiusScreen, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 8. Render Physical Force Vectors in Screen Space
+      const dx = sun.x - earth.x;
+      const dy = sun.y - earth.y;
+      const r = Math.sqrt(dx * dx + dy * dy);
+
+      // Gravity Force Vector
+      if (vectorToggles.force && gravityEnabled) {
+        const forceScale = 45;
+        const fx = (dx / r) * forceScale;
+        const fy = (dy / r) * forceScale;
+        drawArrow(earthScreen.x, earthScreen.y, earthScreen.x + fx, earthScreen.y + fy, '#f43f5e', 2.5, 'Fg (Gravity)');
+      }
+
+      // Velocity Vector
+      if (vectorToggles.velocity) {
+        const velScale = 12 * camera.zoom;
+        const vxEnd = earthScreen.x + earth.vx * velScale;
+        const vyEnd = earthScreen.y + earth.vy * velScale;
+        drawArrow(earthScreen.x, earthScreen.y, vxEnd, vyEnd, '#f59e0b', 2.5, 'v (Velocity)');
+
+        // Velocity Handle Tip
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath();
+        ctx.arc(vxEnd, vyEnd, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      // Acceleration Vector
+      if (vectorToggles.accel && gravityEnabled) {
+        const accelMag = (G_CONST * sun.mass) / (r * r);
+        const accelScale = 35;
+        const ax = (dx / r) * accelMag * accelScale;
+        const ay = (dy / r) * accelMag * accelScale;
+        drawArrow(earthScreen.x, earthScreen.y, earthScreen.x + ax, earthScreen.y + ay, '#c084fc', 2, 'a (Accel)');
+      }
+
+      // Update Telemetry Panel HUD
+      updateTelemetryHUD(r);
+    }
+
+    // Arrow Rendering Helper
+    function drawArrow(fromX, fromY, toX, toY, color, width = 2, label = '') {
+      const headLen = 9;
+      const angle = Math.atan2(toY - fromY, toX - fromX);
+
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = width;
+
+      ctx.beginPath();
+      ctx.moveTo(fromX, fromY);
+      ctx.lineTo(toX, toY);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(toX, toY);
+      ctx.lineTo(toX - headLen * Math.cos(angle - Math.PI / 6), toY - headLen * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(toX - headLen * Math.cos(angle + Math.PI / 6), toY - headLen * Math.sin(angle + Math.PI / 6));
+      ctx.closePath();
+      ctx.fill();
+
+      if (label) {
+        ctx.font = '10px JetBrains Mono';
+        ctx.fillStyle = color;
+        ctx.fillText(label, toX + 8, toY + 4);
+      }
+    }
+
+    // Telemetry Calculation & HUD Sync
+    function updateTelemetryHUD(distPixels) {
+      const distAU = distPixels / AU_PIXELS;
+      const distKm = distAU * 149597870.7;
+
+      const velMagnitude = Math.sqrt(earth.vx * earth.vx + earth.vy * earth.vy);
+      const velKmS = (velMagnitude / Math.sqrt(G_CONST / AU_PIXELS)) * 29.78;
+
+      const vCircCurrent = Math.sqrt((G_CONST * sun.mass) / distPixels);
+      const speedRatio = velMagnitude / vCircCurrent;
+
+      const forceMag = (G_CONST * sun.mass * earth.mass) / (distPixels * distPixels);
+      const displayForce = (forceMag * 3.54).toFixed(2);
+
+      const periodDays = Math.round(365.25 * Math.pow(distAU, 1.5) / Math.sqrt(sun.mass));
+
+      document.getElementById('hudDistance').innerText = `${distAU.toFixed(2)} AU`;
+      document.getElementById('hudDistanceKm').innerText = `${(distKm / 1e6).toFixed(1)}M km`;
+
+      document.getElementById('hudVelocity').innerText = `${velKmS.toFixed(2)} km/s`;
+      document.getElementById('hudSpeedRatio').innerText = `${speedRatio.toFixed(2)}x Circular`;
+
+      document.getElementById('hudForce').innerText = `${displayForce} × 10²² N`;
+      document.getElementById('hudPeriod').innerText = isNaN(periodDays) || !gravityEnabled ? 'N/A' : `${periodDays} Days`;
+
+      const badge = document.getElementById('orbitTypeBadge');
+      if (!gravityEnabled) {
+        badge.innerText = 'NO GRAVITY (INERTIA)';
+        badge.className = 'text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-600';
+      } else if (speedRatio >= 1.414) {
+        badge.innerText = 'ESCAPE / HYPERBOLIC';
+        badge.className = 'text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-950/80 text-rose-400 border border-rose-800/50';
+      } else if (Math.abs(speedRatio - 1.0) < 0.05) {
+        badge.innerText = 'CIRCULAR ORBIT';
+        badge.className = 'text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-800/50';
+      } else {
+        badge.innerText = 'ELLIPTICAL ORBIT';
+        badge.className = 'text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-950/80 text-amber-400 border border-amber-800/50';
+      }
+
+      const kineticE = 0.5 * earth.mass * velMagnitude * velMagnitude;
+      const potentialE = gravityEnabled ? (G_CONST * sun.mass * earth.mass) / distPixels : 0;
+      const totalE = kineticE + potentialE;
+
+      let kPct = totalE > 0 ? (kineticE / totalE) * 100 : 50;
+      kPct = Math.max(5, Math.min(95, kPct));
+
+      document.getElementById('barKinetic').style.width = `${kPct}%`;
+      document.getElementById('barPotential').style.width = `${100 - kPct}%`;
+    }
+
+    // Main Loop
+    let lastTime = performance.now();
+    function animate(currentTime) {
+      const dt = Math.min((currentTime - lastTime) / 1000, 0.1);
+      lastTime = currentTime;
+
+      if (!isDraggingEarth && !isDraggingVelocity) {
+        updatePhysics(dt);
+      }
+
+      render();
+      requestAnimationFrame(animate);
+    }
+
+    // Mouse Wheel Zoom Event
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.12 : 0.88;
+      adjustZoom(zoomFactor, { x: e.clientX, y: e.clientY });
+    }, { passive: false });
+
+    // Mouse & Dragging Interactions
+    canvas.addEventListener('mousedown', (e) => {
+      const mouseX = e.clientX;
+      const mouseY = e.clientY;
+      const worldPos = screenToWorld(mouseX, mouseY);
+      const earthScreen = worldToScreen(earth.x, earth.y);
+
+      // Check click on Velocity Vector Handle Tip
+      const velScale = 12 * camera.zoom;
+      const vxEnd = earthScreen.x + earth.vx * velScale;
+      const vyEnd = earthScreen.y + earth.vy * velScale;
+      const distToVelTip = Math.hypot(mouseX - vxEnd, mouseY - vyEnd);
+
+      if (distToVelTip < 16 && vectorToggles.velocity) {
+        isDraggingVelocity = true;
+        return;
+      }
+
+      // Check click on Earth
+      const distToEarthScreen = Math.hypot(mouseX - earthScreen.x, mouseY - earthScreen.y);
+      const earthHitRadius = Math.max(20, earth.baseRadius * camera.zoom * 1.8);
+      if (distToEarthScreen < earthHitRadius) {
+        isDraggingEarth = true;
+        dragOffsetX = worldPos.x - earth.x;
+        dragOffsetY = worldPos.y - earth.y;
+        earth.trail = [];
+        return;
+      }
+
+      // Otherwise start Panning Space Background
+      isPanningCanvas = true;
+      panStartX = mouseX;
+      panStartY = mouseY;
+      camera.target = 'free';
+      updateCameraFocusUI();
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      const mouseX = e.clientX;
+      const mouseY = e.clientY;
+      const worldPos = screenToWorld(mouseX, mouseY);
+
+      if (isDraggingEarth) {
+        earth.x = worldPos.x - dragOffsetX;
+        earth.y = worldPos.y - dragOffsetY;
+      } else if (isDraggingVelocity) {
+        const velScale = 12 * camera.zoom;
+        const earthScreen = worldToScreen(earth.x, earth.y);
+        earth.vx = (mouseX - earthScreen.x) / velScale;
+        earth.vy = (mouseY - earthScreen.y) / velScale;
+
+        const dist = Math.hypot(earth.x - sun.x, earth.y - sun.y);
+        const vCirc = Math.sqrt((G_CONST * sun.mass) / dist);
+        const currentV = Math.hypot(earth.vx, earth.vy);
+        const pct = Math.round((currentV / vCirc) * 100);
+        document.getElementById('speedBoostSlider').value = Math.min(250, Math.max(10, pct));
+        document.getElementById('speedBoostVal').innerText = `${pct}%`;
+      } else if (isPanningCanvas) {
+        const dx = (mouseX - panStartX) / camera.zoom;
+        const dy = (mouseY - panStartY) / camera.zoom;
+        camera.x -= dx;
+        camera.y -= dy;
+        panStartX = mouseX;
+        panStartY = mouseY;
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDraggingEarth = false;
+      isDraggingVelocity = false;
+      isPanningCanvas = false;
+    });
+
+    // Touch Support with Pinch-To-Zoom & Pan
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) {
+        // Pinch-zoom start
+        touchStartDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        touchStartZoom = camera.zoom;
+      } else if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        const mouseX = touch.clientX;
+        const mouseY = touch.clientY;
+        const earthScreen = worldToScreen(earth.x, earth.y);
+
+        const distToEarthScreen = Math.hypot(mouseX - earthScreen.x, mouseY - earthScreen.y);
+        const earthHitRadius = Math.max(25, earth.baseRadius * camera.zoom * 2);
+
+        if (distToEarthScreen < earthHitRadius) {
+          isDraggingEarth = true;
+          const worldPos = screenToWorld(mouseX, mouseY);
+          dragOffsetX = worldPos.x - earth.x;
+          dragOffsetY = worldPos.y - earth.y;
+          earth.trail = [];
+        } else {
+          isPanningCanvas = true;
+          panStartX = mouseX;
+          panStartY = mouseY;
+          camera.target = 'free';
+          updateCameraFocusUI();
+        }
+      }
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 2) {
+        // Pinch-zoom processing
+        const currentDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        if (touchStartDist > 0) {
+          const factor = currentDist / touchStartDist;
+          camera.zoom = Math.max(camera.minZoom, Math.min(camera.maxZoom, touchStartZoom * factor));
+          updateZoomUI();
+        }
+      } else if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        const mouseX = touch.clientX;
+        const mouseY = touch.clientY;
+
+        if (isDraggingEarth) {
+          const worldPos = screenToWorld(mouseX, mouseY);
+          earth.x = worldPos.x - dragOffsetX;
+          earth.y = worldPos.y - dragOffsetY;
+        } else if (isPanningCanvas) {
+          const dx = (mouseX - panStartX) / camera.zoom;
+          const dy = (mouseY - panStartY) / camera.zoom;
+          camera.x -= dx;
+          camera.y -= dy;
+          panStartX = mouseX;
+          panStartY = mouseY;
+        }
+      }
+    });
+
+    canvas.addEventListener('touchend', () => {
+      isDraggingEarth = false;
+      isPanningCanvas = false;
+      touchStartDist = 0;
+    });
+
+    // Control Handlers
+    function toggleGravity() {
+      gravityEnabled = !gravityEnabled;
+      updateGravityBtnUI();
+    }
+
+    function updateGravityBtnUI() {
+      const btn = document.getElementById('toggleGravityBtn');
+      if (gravityEnabled) {
+        btn.innerHTML = '<i class="fa-solid fa-magnet mr-1"></i> ON';
+        btn.className = "px-3 py-1.5 rounded-xl text-xs font-bold bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20 hover:bg-cyan-400 transition";
+      } else {
+        btn.innerHTML = '<i class="fa-solid fa-ban mr-1"></i> OFF';
+        btn.className = "px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 transition";
+      }
+    }
+
+    function updatePhysicsFromControls() {
+      const sunMassVal = parseFloat(document.getElementById('sunMassSlider').value);
+      sun.mass = sunMassVal;
+      document.getElementById('sunMassVal').innerText = `${sunMassVal.toFixed(2)} M☉`;
+    }
+
+    function updateSpeedBoost() {
+      const pct = parseFloat(document.getElementById('speedBoostSlider').value) / 100;
+      document.getElementById('speedBoostVal').innerText = `${Math.round(pct * 100)}%`;
+
+      const dist = Math.hypot(earth.x - sun.x, earth.y - sun.y);
+      const vCirc = Math.sqrt((G_CONST * sun.mass) / dist);
+
+      // Preserve velocity angle, scale magnitude
+      const currentAngle = Math.atan2(earth.vy, earth.vx);
+      const targetSpeed = vCirc * pct;
+
+      earth.vx = Math.cos(currentAngle) * targetSpeed;
+      earth.vy = Math.sin(currentAngle) * targetSpeed;
+    }
+
+    function applyNewDistance() {
+      const rAU = parseFloat(document.getElementById('distanceSlider').value);
+      document.getElementById('distanceVal').innerText = `${rAU.toFixed(2)} AU`;
+
+      const distPixels = rAU * AU_PIXELS;
+      earth.x = sun.x + distPixels;
+      earth.y = sun.y;
+
+      // Recalculate circular velocity for new distance
+      const vCirc = Math.sqrt((G_CONST * sun.mass) / distPixels);
+      const boostPct = parseFloat(document.getElementById('speedBoostSlider').value) / 100;
+
+      earth.vx = 0;
+      earth.vy = -vCirc * boostPct;
+      earth.trail = [];
+    }
+
+    function toggleVector(type) {
+      vectorToggles[type] = !vectorToggles[type];
+      const btnMap = {
+        force: 'btnVecForce',
+        velocity: 'btnVecVelocity',
+        accel: 'btnVecAccel'
+      };
+      const btn = document.getElementById(btnMap[type]);
+      if (vectorToggles[type]) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    }
+
+    function toggleTrail() {
+      showTrail = !showTrail;
+      const btn = document.getElementById('btnToggleTrail');
+      if (showTrail) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+        earth.trail = [];
+      }
+    }
+
+    function clearTrail() {
+      earth.trail = [];
+    }
+
+    function toggleMoon() {
+      showMoon = document.getElementById('chkMoon').checked;
+    }
+
+    function toggleGrid() {
+      showGrid = document.getElementById('chkGrid').checked;
+    }
+
+    function setSimSpeed(speed) {
+      simSpeed = speed;
+      document.querySelectorAll('.speed-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.innerText === `${speed}x`) {
+          btn.classList.add('active');
+        }
+      });
+    }
+
+    function togglePlayPause() {
+      isRunning = !isRunning;
+      const icon = document.getElementById('playIcon');
+      if (isRunning) {
+        icon.className = 'fa-solid fa-pause text-base';
+      } else {
+        icon.className = 'fa-solid fa-play text-base ml-0.5';
+      }
+    }
+
+    function stepSimulation() {
+      isRunning = false;
+      document.getElementById('playIcon').className = 'fa-solid fa-play text-base ml-0.5';
+      updatePhysics(0.016);
+      render();
+    }
+
+    // Guided Lesson Drawer Toggle
+    const lessonDrawer = document.getElementById('lessonDrawer');
+    document.getElementById('toggleLessonBtn').addEventListener('click', () => {
+      lessonDrawer.classList.remove('translate-x-full');
+    });
+    document.getElementById('closeLessonBtn').addEventListener('click', () => {
+      lessonDrawer.classList.add('translate-x-full');
+    });
+
+    // Window Resize Event
+    window.addEventListener('resize', resizeCanvas);
+
+    // Initial Engine Startup
+    window.onload = function() {
+      resizeCanvas();
+      resetSimulation();
+      requestAnimationFrame(animate);
+
+      // Hide canvas drag tip after 8 seconds
+      setTimeout(() => {
+        const tip = document.getElementById('canvasTip');
+        if (tip) tip.style.opacity = '0';
+      }, 8000);
+    };
+  </script>
+</body>
+</html>
